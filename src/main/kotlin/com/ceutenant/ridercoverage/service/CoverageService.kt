@@ -2,6 +2,11 @@ package com.ceutenant.ridercoverage.service
 
 import com.ceutenant.ridercoverage.model.CoverageReport
 import com.ceutenant.ridercoverage.model.CoverageState
+import com.ceutenant.ridercoverage.model.FileCoverageEntry
+import com.ceutenant.ridercoverage.model.FileCoverageSummary
+import com.ceutenant.ridercoverage.model.LineHit
+import com.ceutenant.ridercoverage.model.ProjectCoverageSummary
+import com.ceutenant.ridercoverage.model.SolutionCoverageSummary
 import com.ceutenant.ridercoverage.parser.CoberturaParser
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
@@ -18,10 +23,11 @@ import java.awt.Color
 import java.io.File
 
 /**
- * Estado de cobertura do projeto: carrega o Cobertura XML mais recente e
- * pinta/limpa o gutter dos editores abertos. Um serviço por projeto (não por
- * aplicação) porque "mais recente sob a raiz do projeto" só faz sentido por
- * projeto.
+ * Estado de cobertura do projeto: carrega os Cobertura XML mais recentes
+ * (um por projeto de teste — ver [findLatestReportFiles]) e pinta/limpa o
+ * gutter dos editores abertos, além de servir o resumo agregado por
+ * arquivo/projeto/solution pro toolwindow. Um serviço por projeto (não por
+ * aplicação) porque "sob a raiz do projeto" só faz sentido por projeto.
  */
 @Service(Service.Level.PROJECT)
 class CoverageService(private val project: Project) {
@@ -33,33 +39,44 @@ class CoverageService(private val project: Project) {
     var report: CoverageReport? = null
         private set
 
-    /** Acha o coverage.cobertura.xml mais recente sob a raiz do projeto, carrega e repinta. Retorna false se não achou nada. */
+    /** Acha os coverage.cobertura.xml mais recentes sob a raiz do projeto, carrega, repinta e avisa o toolwindow. Retorna false se não achou nada. */
     fun reload(): Boolean {
         val basePath = project.basePath
-        val latest = basePath?.let { findLatestReportFile(File(it)) }
+        val reportFiles = basePath?.let { findLatestReportFiles(File(it)) }.orEmpty()
 
-        if (latest == null) {
+        if (reportFiles.isEmpty()) {
             logger.info("Nenhum coverage.cobertura.xml encontrado sob ${basePath ?: "?"}")
             report = null
             repaintAllOpenEditors()
+            publishReloaded()
             return false
         }
 
-        report = try {
-            CoberturaParser.parse(latest)
-        } catch (e: Exception) {
-            logger.warn("Falha lendo $latest", e)
-            null
+        val merged = mutableMapOf<String, FileCoverageEntry>()
+        for (file in reportFiles) {
+            try {
+                for ((key, entry) in CoberturaParser.parse(file).files) {
+                    // Arquivos diferentes normalmente não se repetem entre
+                    // relatórios de projetos de teste distintos, então um
+                    // merge raso (por caminho de arquivo) é suficiente.
+                    val existingLines = merged[key]?.lines.orEmpty()
+                    merged[key] = FileCoverageEntry(entry.originalPath, existingLines + entry.lines)
+                }
+            } catch (e: Exception) {
+                logger.warn("Falha lendo $file", e)
+            }
         }
 
+        report = CoverageReport(reportFiles.joinToString(";") { it.absolutePath }, merged)
         repaintAllOpenEditors()
-        return report != null
+        publishReloaded()
+        return true
     }
 
     fun paint(editor: Editor, filePath: String) {
         clear(editor)
 
-        val fileCoverage = report?.files?.get(CoberturaParser.normalize(File(filePath))) ?: return
+        val fileCoverage = report?.files?.get(CoberturaParser.normalize(File(filePath)))?.lines ?: return
         val document = editor.document
         val highlighters = mutableListOf<RangeHighlighter>()
 
@@ -96,6 +113,32 @@ class CoverageService(private val project: Project) {
         if (report != null) paint(editor, filePath)
     }
 
+    /** Agrega o relatório carregado por arquivo -> projeto (pasta com .csproj) -> solution, pro toolwindow. */
+    fun summarize(): SolutionCoverageSummary {
+        val currentReport = report ?: return SolutionCoverageSummary(emptyList())
+        val basePath = project.basePath ?: return SolutionCoverageSummary(emptyList())
+        val root = File(basePath)
+        val byProjectDir = linkedMapOf<String, MutableList<FileCoverageSummary>>()
+
+        for (entry in currentReport.files.values) {
+            val file = File(entry.originalPath)
+            val covered = entry.lines.values.count { it.hits > 0 }
+            val fileSummary = FileCoverageSummary(entry.originalPath, file.name, entry.lines.size, covered)
+            val projectDir = findProjectDir(file.parentFile ?: root, root) ?: root.path
+            byProjectDir.getOrPut(projectDir) { mutableListOf() }.add(fileSummary)
+        }
+
+        val projects = byProjectDir.map { (dir, files) ->
+            ProjectCoverageSummary(File(dir).name, dir, files.sortedBy { it.displayName })
+        }.sortedBy { it.name }
+
+        return SolutionCoverageSummary(projects)
+    }
+
+    private fun publishReloaded() {
+        project.messageBus.syncPublisher(CoverageReloadListener.TOPIC).onCoverageReloaded()
+    }
+
     private fun repaintAllOpenEditors() {
         for (editor in EditorFactory.getInstance().allEditors) {
             if (editor.project != project) continue
@@ -104,11 +147,35 @@ class CoverageService(private val project: Project) {
         }
     }
 
-    private fun findLatestReportFile(root: File): File? =
+    /** Sobe a árvore a partir da pasta do arquivo até achar um .csproj — essa pasta vira o "projeto" no resumo. */
+    private fun findProjectDir(startDir: File, root: File): String? {
+        val rootPath = root.toPath().normalize()
+        var dir: File? = startDir
+        while (dir != null && dir.toPath().normalize().startsWith(rootPath)) {
+            val hasCsproj = dir.listFiles { f -> f.isFile && f.extension.equals("csproj", ignoreCase = true) }
+                ?.isNotEmpty() == true
+            if (hasCsproj) return dir.path
+            dir = dir.parentFile
+        }
+        return null
+    }
+
+    /**
+     * `dotnet test` escreve em `<algumaPasta>/<guid>/coverage.cobertura.xml`,
+     * um guid novo por execução — sem limpar os antigos. Agrupa pelo avô (a
+     * pasta que não muda a cada execução, ex.: `TenantKit.Tests/TestResults`)
+     * e fica só com o mais recente de cada grupo, senão relatórios de
+     * execuções passadas de um projeto de teste entrariam junto com os de
+     * outro projeto rodado por último e o merge ficaria com dado velho.
+     */
+    private fun findLatestReportFiles(root: File): List<File> =
         root.walkTopDown()
             .onEnter { it.name !in EXCLUDED_DIRS }
             .filter { it.isFile && it.name == "coverage.cobertura.xml" }
-            .maxByOrNull { it.lastModified() }
+            .toList()
+            .groupBy { it.parentFile?.parentFile?.path ?: it.path }
+            .values
+            .mapNotNull { group -> group.maxByOrNull { it.lastModified() } }
 
     companion object {
         private val EXCLUDED_DIRS = setOf(".git", "node_modules", ".idea")

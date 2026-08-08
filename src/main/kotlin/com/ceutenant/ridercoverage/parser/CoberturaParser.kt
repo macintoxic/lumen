@@ -1,6 +1,7 @@
 package com.ceutenant.ridercoverage.parser
 
 import com.ceutenant.ridercoverage.model.CoverageReport
+import com.ceutenant.ridercoverage.model.FileCoverageEntry
 import com.ceutenant.ridercoverage.model.LineHit
 import org.w3c.dom.Element
 import org.w3c.dom.NodeList
@@ -35,11 +36,17 @@ object CoberturaParser {
             .ifEmpty { listOf(xmlFile.parentFile?.absolutePath ?: ".") }
 
         val files = mutableMapOf<String, MutableMap<Int, LineHit>>()
+        // Guarda o caminho com o casing real do disco por chave normalizada
+        // (minúscula) — a chave em si não pode ser usada pra exibir porque
+        // perde o casing original do arquivo.
+        val originalPaths = mutableMapOf<String, String>()
 
         for (classElement in doc.getElementsByTagName("class").asElementList()) {
             val filename = classElement.getAttribute("filename").takeIf { it.isNotBlank() } ?: continue
             val resolved = resolveSourceFile(sources, filename) ?: continue
-            val lineMap = files.getOrPut(normalize(resolved)) { mutableMapOf() }
+            val key = normalize(resolved)
+            originalPaths.putIfAbsent(key, resolved.canonicalPathOrAbsolute())
+            val lineMap = files.getOrPut(key) { mutableMapOf() }
 
             val lineElements = classElement.getElementsByTagName("lines").asElementList()
                 .flatMap { it.getElementsByTagName("line").asElementList() }
@@ -67,8 +74,20 @@ object CoberturaParser {
             }
         }
 
-        return CoverageReport(xmlFile.absolutePath, files)
+        val entries = files.mapValues { (key, lines) ->
+            FileCoverageEntry(originalPaths[key] ?: key, lines)
+        }
+
+        return CoverageReport(xmlFile.absolutePath, entries)
     }
+
+    /** canonicalPath resolve o casing real do arquivo no disco (Windows é case-insensitive mas preserva o case gravado); cai pra absolutePath se o arquivo sumir entre o parse e aqui. */
+    private fun File.canonicalPathOrAbsolute(): String =
+        try {
+            canonicalPath
+        } catch (e: java.io.IOException) {
+            absolutePath
+        }
 
     /** Normaliza pra comparação entre plataformas: absoluto, sem `..`/`.`, case-insensitive. */
     fun normalize(file: File): String =

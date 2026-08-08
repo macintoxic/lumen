@@ -1,9 +1,11 @@
 # Coverage Gutter
 
-Plugin de Rider (IntelliJ Platform) que pinta o gutter do editor com a
-cobertura de testes — uma versão bem mais simples (e gratuita) do dotCover,
-sem instrumentar nem rodar nada: só lê o Cobertura XML que o
+Plugin de Rider (IntelliJ Platform) que mostra cobertura de testes no
+editor e num painel dedicado — uma versão bem mais simples (e gratuita) do
+dotCover, sem instrumentar nem rodar nada: só lê o Cobertura XML que o
 `coverlet.collector` já gera via `dotnet test --collect:"XPlat Code Coverage"`.
+
+## Gutter do editor
 
 - 🟩 verde — linha coberta
 - 🟨 amarelo — ponto de decisão (`if`/`switch`/`&&`/`||`/ternário, inclusive
@@ -11,10 +13,25 @@ sem instrumentar nem rodar nada: só lê o Cobertura XML que o
   possíveis (`condition-coverage < 100%` no XML)
 - 🟥 vermelho — linha não coberta (`hits="0"`)
 
-Ao abrir um projeto, procura o `coverage.cobertura.xml` mais recente sob a
-raiz do projeto e carrega automaticamente. **"Reload Coverage Report"**
-(menu de contexto do editor, ou menu Tools) reimporta sob demanda — rode os
-testes de novo e chame essa ação pra ver o resultado atualizado.
+## Painel "Coverage Gutter" (toolwindow, lateral direita)
+
+Árvore Solution → Projeto (pasta com `.csproj`) → Arquivo, no estilo da
+janela "Coverage Tree" do dotCover: cada linha tem uma barra bicolor
+(verde = coberto, rosa = não coberto, `%` escrito dentro) e a contagem
+`não-coberto/total` de linhas rastreadas. Duplo-clique num arquivo abre ele
+no editor.
+
+## Atualização automática
+
+Ao abrir um projeto, procura o(s) `coverage.cobertura.xml` mais recente(s)
+sob a raiz (um por projeto de teste, agrupando pela pasta que o `dotnet
+test` não recria a cada execução — ver `CoverageService.findLatestReportFiles`)
+e carrega automaticamente. Depois disso, um watcher de VFS fica de olho em
+qualquer `coverage.cobertura.xml` sendo criado/alterado — dispara reload
+sozinho, gutter e painel juntos, tanto pra teste rodado pelo Rider quanto
+por `dotnet test` no terminal (não depende de nenhuma run configuration
+específica). **"Reload Coverage Report"** (menu de contexto do editor, menu
+Tools, ou botão no painel) força a reimportação a qualquer momento.
 
 ## Por que existe
 
@@ -49,19 +66,25 @@ precisar reativar algum dia).
 ## Estrutura
 
 ```
-model/     — CoverageReport, LineHit, CoverageState (NOT_COVERED/PARTIALLY_COVERED/COVERED)
-parser/    — CoberturaParser: XML -> CoverageReport
-service/   — CoverageService: acha o XML mais recente, pinta/limpa o gutter (um serviço por projeto)
+model/     — CoverageReport/CoverageSummary, LineHit, CoverageState (NOT_COVERED/PARTIALLY_COVERED/COVERED)
+parser/    — CoberturaParser: XML -> CoverageReport (preserva o casing real do arquivo em disco pra exibição)
+service/   — CoverageService (acha os XML mais recentes, pinta/limpa o gutter, agrega o resumo pro painel)
+             CoverageFileWatcherService (VFS listener -> reload automático)
+             CoverageReloadListener (Topic — gutter e painel assinam os dois)
 listener/  — CoverageEditorFactoryListener: pinta editor ao abrir, limpa ao fechar
-startup/   — CoverageStartupActivity: carrega automaticamente quando o projeto abre
-actions/   — ReloadCoverageAction: reimporta sob demanda
+startup/   — CoverageStartupActivity: carrega + liga o watcher quando o projeto abre
+actions/   — ReloadCoverageAction: reimporta sob demanda (menu de contexto/Tools)
+ui/        — CoverageToolWindowFactory/CoveragePanel: TreeTable Symbol/Coverage(%)/Uncovered-Total
+             CoverageBarCellRenderer: barra bicolor pintada à mão (JProgressBar não respeita
+             `foreground` no Darcula — sempre usa o azul do tema, por isso não é usado aqui)
 ```
 
 ## Limitações conhecidas (v1)
 
-- Só re-pinta quando você chama "Reload Coverage Report" manualmente — sem
-  watcher no arquivo XML nem hook automático de pós-test-run.
-- Sem toolwindow nem breakdown por classe/método — só o gutter.
+- `CoverageService.summarize()` (localizar o `.csproj` de cada arquivo, via
+  `listFiles()` subindo diretório por diretório) roda síncrono na thread da
+  UI — tranquilo pro tamanho de repo testado aqui, pode ficar perceptível
+  em solutions bem maiores.
 - Testado até aqui com Rider 2026.1 (build RD-261.x) + relatórios do
   `coverlet.collector` 6.0.4. Outros geradores de Cobertura XML (dotnet-coverage,
   ReportGenerator) devem funcionar também já que o formato é o mesmo, mas não

@@ -28,12 +28,23 @@ data class LineHit(
 typealias FileCoverage = Map<Int, LineHit>
 
 /**
+ * [originalPath] preserva o casing real do arquivo em disco (pra exibir) —
+ * é diferente da chave em [CoverageReport.files], que fica em minúsculo só
+ * pra permitir comparar com o caminho do editor sem depender de case.
+ */
+data class FileCoverageEntry(
+    val originalPath: String,
+    val lines: FileCoverage,
+)
+
+/**
  * Relatório carregado, indexado por caminho absoluto normalizado
  * (ver [com.ceutenant.ridercoverage.parser.CoberturaParser.normalize]) —
  * é essa normalização que permite comparar o `filename` do XML (relativo a
- * um `<source>`) com o caminho do arquivo aberto no editor.
+ * um `<source>`) com o caminho do arquivo aberto no editor, sem se importar
+ * com maiúsculo/minúsculo (Windows é case-insensitive).
  */
 data class CoverageReport(
     val sourceFile: String,
-    val files: Map<String, FileCoverage>,
+    val files: Map<String, FileCoverageEntry>,
 )
