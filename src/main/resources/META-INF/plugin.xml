@@ -1,0 +1,25 @@
+<idea-plugin>
+    <!-- id/name/version/description/sinceBuild vêm do build.gradle.kts (intellijPlatform.pluginConfiguration) -->
+    <vendor>CeuTenant</vendor>
+
+    <!-- com.intellij.modules.platform é suficiente — só mexe no editor/gutter
+         a partir de um XML já existente em disco, nada de módulo específico
+         de C#/.NET/backend ReSharper. -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="com.ceutenant.ridercoverage.startup.CoverageStartupActivity"/>
+        <editorFactoryListener implementation="com.ceutenant.ridercoverage.listener.CoverageEditorFactoryListener"/>
+        <notificationGroup id="Coverage Gutter" displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <action id="CoverageGutter.Reload"
+                class="com.ceutenant.ridercoverage.actions.ReloadCoverageAction"
+                text="Reload Coverage Report"
+                description="Reimporta o coverage.cobertura.xml mais recente do projeto e repinta os editores abertos">
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+            <add-to-group group-id="ToolsMenu" anchor="first"/>
+        </action>
+    </actions>
+</idea-plugin>
