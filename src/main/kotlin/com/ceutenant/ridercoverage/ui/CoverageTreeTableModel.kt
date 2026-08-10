@@ -30,7 +30,7 @@ class CoverageTreeTableModel(root: DefaultMutableTreeNode) : DefaultTreeModel(ro
         val coverageNode = ((node as? DefaultMutableTreeNode)?.userObject as? CoverageNode) ?: return null
         return when (column) {
             1 -> coverageNode // a própria bar renderer decide o que desenhar a partir do node
-            2 -> "${coverageNode.totalLines - coverageNode.coveredLines}/${coverageNode.totalLines}"
+            2 -> if (coverageNode.measured) "${coverageNode.totalLines - coverageNode.coveredLines}/${coverageNode.totalLines}" else "—"
             else -> null
         }
     }

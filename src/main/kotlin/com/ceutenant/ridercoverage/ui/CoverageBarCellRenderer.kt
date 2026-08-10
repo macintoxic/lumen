@@ -32,12 +32,14 @@ class CoverageBarCellRenderer : TableCellRenderer {
         val node = value as? CoverageNode
         bar.percent = node?.percent ?: 0.0
         bar.bold = node is CoverageNode.SolutionNode
+        bar.noData = node?.measured == false
         return bar
     }
 
     private class Bar : JComponent() {
         var percent: Double = 0.0
         var bold: Boolean = false
+        var noData: Boolean = false
 
         init {
             preferredSize = Dimension(0, 22)
@@ -51,6 +53,23 @@ class CoverageBarCellRenderer : TableCellRenderer {
             val inset = 2
             val barWidth = width - inset * 2
             val barHeight = height - inset * 2
+
+            if (noData) {
+                // Projeto da solution que nunca apareceu em nenhum
+                // coverage.cobertura.xml (nenhum teste carregou seu código)
+                // — estado neutro, não "0% coberto".
+                g2.color = NO_DATA_COLOR
+                g2.fillRect(inset, inset, barWidth, barHeight)
+
+                g2.color = NO_DATA_TEXT_COLOR
+                g2.font = g2.font.deriveFont(if (bold) Font.BOLD else Font.PLAIN)
+                val text = "No data"
+                val metrics = g2.fontMetrics
+                val x = inset + (barWidth - metrics.stringWidth(text)) / 2
+                val y = inset + (barHeight - metrics.height) / 2 + metrics.ascent
+                g2.drawString(text, x, y)
+                return
+            }
 
             // Fundo inteiro rosa (parte não coberta) e por cima o verde
             // (parte coberta), igual o dotCover — diferente da versão
@@ -78,5 +97,7 @@ class CoverageBarCellRenderer : TableCellRenderer {
         private val COVERED_COLOR = JBColor(Color(63, 154, 79), Color(63, 134, 79))
         private val UNCOVERED_COLOR = JBColor(Color(240, 200, 200), Color(107, 60, 60))
         private val TEXT_COLOR = JBColor(Color(30, 30, 30), Color(235, 235, 235))
+        private val NO_DATA_COLOR = JBColor(Color(225, 225, 225), Color(60, 60, 60))
+        private val NO_DATA_TEXT_COLOR = JBColor(Color(90, 90, 90), Color(170, 170, 170))
     }
 }

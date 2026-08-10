@@ -15,6 +15,9 @@ sealed interface CoverageNode {
     val coveredLines: Int
     val icon: Icon
 
+    /** false só pro ProjectNode de um projeto que existe na solution mas nunca apareceu em nenhum relatório — ver [ProjectCoverageSummary.measured]. */
+    val measured: Boolean get() = true
+
     data class SolutionNode(val summary: SolutionCoverageSummary) : CoverageNode {
         override val label get() = "Solution"
         override val percent get() = summary.percent
@@ -29,6 +32,7 @@ sealed interface CoverageNode {
         override val totalLines get() = summary.totalLines
         override val coveredLines get() = summary.coveredLines
         override val icon: Icon get() = AllIcons.Nodes.Module
+        override val measured get() = summary.measured
     }
 
     data class FileNode(val summary: FileCoverageSummary) : CoverageNode {

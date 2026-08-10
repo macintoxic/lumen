@@ -24,6 +24,9 @@ data class ProjectCoverageSummary(
 ) : CoverageAggregate {
     override val totalLines: Int get() = files.sumOf { it.totalLines }
     override val coveredLines: Int get() = files.sumOf { it.coveredLines }
+
+    /** false = projeto existe na solution mas não apareceu em nenhum coverage.cobertura.xml (nunca foi carregado por um teste) — não confundir com "0% coberto". */
+    val measured: Boolean get() = files.isNotEmpty()
 }
 
 data class SolutionCoverageSummary(

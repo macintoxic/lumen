@@ -128,6 +128,15 @@ class CoverageService(private val project: Project) {
             byProjectDir.getOrPut(projectDir) { mutableListOf() }.add(fileSummary)
         }
 
+        // Cobertura só cobre o que os testes de fato carregaram — um projeto
+        // de produção sem nenhum teste referenciando ele (ex.: uma API sem
+        // referência de TenantKit.Tests) nunca aparece em nenhum coverage
+        // .cobertura.xml. Sem isso, esses projetos simplesmente somem do
+        // painel em vez de aparecer como "não medido".
+        for (dir in discoverNonTestProjectDirs(root)) {
+            byProjectDir.getOrPut(dir.path) { mutableListOf() }
+        }
+
         val projects = byProjectDir.map { (dir, files) ->
             ProjectCoverageSummary(File(dir).name, dir, files.sortedBy { it.displayName })
         }.sortedBy { it.name }
@@ -160,6 +169,25 @@ class CoverageService(private val project: Project) {
         return null
     }
 
+    /** Acha todas as pastas com .csproj sob a raiz da solution, exceto as de projeto de teste — ver [isTestProjectDir]. */
+    private fun discoverNonTestProjectDirs(root: File): List<File> =
+        root.walkTopDown()
+            .onEnter { it.name !in PROJECT_DISCOVERY_EXCLUDED_DIRS }
+            .filter { dir ->
+                dir.isDirectory && dir.listFiles { f -> f.isFile && f.extension.equals("csproj", ignoreCase = true) }
+                    ?.isNotEmpty() == true
+            }
+            .filterNot { isTestProjectDir(it) }
+            .toList()
+
+    /** Convenção .NET: projeto de teste termina em .Tests/.Test, ou o .csproj referencia Microsoft.NET.Test.Sdk. */
+    private fun isTestProjectDir(dir: File): Boolean {
+        if (dir.name.endsWith("Tests", ignoreCase = true) || dir.name.endsWith("Test", ignoreCase = true)) return true
+        val csproj = dir.listFiles { f -> f.isFile && f.extension.equals("csproj", ignoreCase = true) }?.firstOrNull()
+            ?: return false
+        return runCatching { csproj.readText() }.getOrDefault("").contains("Microsoft.NET.Test.Sdk", ignoreCase = true)
+    }
+
     /**
      * `dotnet test` escreve em `<algumaPasta>/<guid>/coverage.cobertura.xml`,
      * um guid novo por execução — sem limpar os antigos. Agrupa pelo avô (a
@@ -179,6 +207,7 @@ class CoverageService(private val project: Project) {
 
     companion object {
         private val EXCLUDED_DIRS = setOf(".git", "node_modules", ".idea")
+        private val PROJECT_DISCOVERY_EXCLUDED_DIRS = EXCLUDED_DIRS + setOf("bin", "obj")
         private val COVERED_COLOR = JBColor(Color(198, 239, 206), Color(30, 70, 40))
         private val PARTIALLY_COVERED_COLOR = JBColor(Color(255, 235, 156), Color(90, 74, 20))
         private val NOT_COVERED_COLOR = JBColor(Color(255, 199, 206), Color(90, 30, 35))
