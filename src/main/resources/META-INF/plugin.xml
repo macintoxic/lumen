@@ -8,20 +8,21 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <postStartupActivity implementation="com.ceutenant.ridercoverage.startup.CoverageStartupActivity"/>
-        <editorFactoryListener implementation="com.ceutenant.ridercoverage.listener.CoverageEditorFactoryListener"/>
-        <notificationGroup id="Coverage Gutter" displayType="BALLOON"/>
+        <postStartupActivity implementation="com.ceutenant.lumen.startup.CoverageStartupActivity"/>
+        <editorFactoryListener implementation="com.ceutenant.lumen.listener.CoverageEditorFactoryListener"/>
+        <notificationGroup id="Lumen" displayType="BALLOON"/>
         <!-- id="Coverage" colide com o toolwindow nativo do Rider (dotCover
-             embutido já registra esse id) — precisa ser distinto. -->
-        <toolWindow id="Coverage Gutter"
+             embutido já registra esse id) — "Code Coverage" é o texto pedido
+             pro botão lateral e também precisa ser distinto do nativo. -->
+        <toolWindow id="Code Coverage"
                     anchor="right"
                     icon="AllIcons.Toolwindows.ToolWindowCoverage"
-                    factoryClass="com.ceutenant.ridercoverage.ui.CoverageToolWindowFactory"/>
+                    factoryClass="com.ceutenant.lumen.ui.CoverageToolWindowFactory"/>
     </extensions>
 
     <actions>
-        <action id="CoverageGutter.Reload"
-                class="com.ceutenant.ridercoverage.actions.ReloadCoverageAction"
+        <action id="Lumen.ReloadCoverage"
+                class="com.ceutenant.lumen.actions.ReloadCoverageAction"
                 text="Reload Coverage Report"
                 description="Reimporta o coverage.cobertura.xml mais recente do projeto e repinta os editores abertos">
             <add-to-group group-id="EditorPopupMenu" anchor="first"/>

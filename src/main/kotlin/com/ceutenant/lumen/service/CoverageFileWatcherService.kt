@@ -1,4 +1,4 @@
-package com.ceutenant.ridercoverage.service
+package com.ceutenant.lumen.service
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service

@@ -1,6 +1,6 @@
-package com.ceutenant.ridercoverage.listener
+package com.ceutenant.lumen.listener
 
-import com.ceutenant.ridercoverage.service.CoverageService
+import com.ceutenant.lumen.service.CoverageService
 import com.intellij.openapi.editor.event.EditorFactoryEvent
 import com.intellij.openapi.editor.event.EditorFactoryListener
 import com.intellij.openapi.fileEditor.FileDocumentManager

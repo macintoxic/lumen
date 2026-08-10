@@ -1,4 +1,4 @@
-package com.ceutenant.ridercoverage.ui
+package com.ceutenant.lumen.ui
 
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project

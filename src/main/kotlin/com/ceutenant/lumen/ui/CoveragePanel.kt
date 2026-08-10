@@ -1,7 +1,7 @@
-package com.ceutenant.ridercoverage.ui
+package com.ceutenant.lumen.ui
 
-import com.ceutenant.ridercoverage.service.CoverageReloadListener
-import com.ceutenant.ridercoverage.service.CoverageService
+import com.ceutenant.lumen.service.CoverageReloadListener
+import com.ceutenant.lumen.service.CoverageService
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager

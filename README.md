@@ -1,4 +1,4 @@
-# Coverage Gutter
+# Lumen
 
 Plugin de Rider (IntelliJ Platform) que mostra cobertura de testes no
 editor e num painel dedicado — uma versão bem mais simples (e gratuita) do
@@ -13,7 +13,7 @@ dotCover, sem instrumentar nem rodar nada: só lê o Cobertura XML que o
   possíveis (`condition-coverage < 100%` no XML)
 - 🟥 vermelho — linha não coberta (`hits="0"`)
 
-## Painel "Coverage Gutter" (toolwindow, lateral direita)
+## Painel "Code Coverage" (toolwindow, lateral direita)
 
 Árvore Solution → Projeto (pasta com `.csproj`) → Arquivo, no estilo da
 janela "Coverage Tree" do dotCover: cada linha tem uma barra bicolor

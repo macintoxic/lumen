@@ -1,4 +1,4 @@
-package com.ceutenant.ridercoverage.model
+package com.ceutenant.lumen.model
 
 enum class CoverageState { NOT_COVERED, PARTIALLY_COVERED, COVERED }
 
@@ -39,7 +39,7 @@ data class FileCoverageEntry(
 
 /**
  * Relatório carregado, indexado por caminho absoluto normalizado
- * (ver [com.ceutenant.ridercoverage.parser.CoberturaParser.normalize]) —
+ * (ver [com.ceutenant.lumen.parser.CoberturaParser.normalize]) —
  * é essa normalização que permite comparar o `filename` do XML (relativo a
  * um `<source>`) com o caminho do arquivo aberto no editor, sem se importar
  * com maiúsculo/minúsculo (Windows é case-insensitive).

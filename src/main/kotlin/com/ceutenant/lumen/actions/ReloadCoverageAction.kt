@@ -1,6 +1,6 @@
-package com.ceutenant.ridercoverage.actions
+package com.ceutenant.lumen.actions
 
-import com.ceutenant.ridercoverage.service.CoverageService
+import com.ceutenant.lumen.service.CoverageService
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -28,7 +28,7 @@ class ReloadCoverageAction : AnAction() {
         }
 
         NotificationGroupManager.getInstance()
-            .getNotificationGroup("Coverage Gutter")
+            .getNotificationGroup("Lumen")
             .createNotification(message, NotificationType.INFORMATION)
             .notify(project)
     }

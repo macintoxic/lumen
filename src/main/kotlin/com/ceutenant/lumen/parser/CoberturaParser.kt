@@ -1,8 +1,8 @@
-package com.ceutenant.ridercoverage.parser
+package com.ceutenant.lumen.parser
 
-import com.ceutenant.ridercoverage.model.CoverageReport
-import com.ceutenant.ridercoverage.model.FileCoverageEntry
-import com.ceutenant.ridercoverage.model.LineHit
+import com.ceutenant.lumen.model.CoverageReport
+import com.ceutenant.lumen.model.FileCoverageEntry
+import com.ceutenant.lumen.model.LineHit
 import org.w3c.dom.Element
 import org.w3c.dom.NodeList
 import java.io.File

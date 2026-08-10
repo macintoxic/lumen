@@ -1,1 +1,1 @@
-rootProject.name = "rider-coverage-plugin"
+rootProject.name = "lumen"

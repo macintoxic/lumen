@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
-group = "com.ceutenant.ridercoverage"
+group = "com.ceutenant.lumen"
 version = "0.0.1"
 
 repositories {
@@ -32,8 +32,8 @@ intellijPlatform {
     instrumentCode = false
 
     pluginConfiguration {
-        id = "com.ceutenant.ridercoverage"
-        name = "Coverage Gutter"
+        id = "com.ceutenant.lumen"
+        name = "Lumen"
         version = project.version.toString()
 
         description = """

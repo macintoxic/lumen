@@ -1,7 +1,7 @@
-package com.ceutenant.ridercoverage.startup
+package com.ceutenant.lumen.startup
 
-import com.ceutenant.ridercoverage.service.CoverageFileWatcherService
-import com.ceutenant.ridercoverage.service.CoverageService
+import com.ceutenant.lumen.service.CoverageFileWatcherService
+import com.ceutenant.lumen.service.CoverageService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 

@@ -1,4 +1,4 @@
-package com.ceutenant.ridercoverage.model
+package com.ceutenant.lumen.model
 
 /** Agregado por linhas rastreadas (não confundir com linhas de código total do arquivo — só o que o Cobertura mediu). */
 sealed interface CoverageAggregate {

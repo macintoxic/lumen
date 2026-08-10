@@ -1,9 +1,9 @@
-package com.ceutenant.ridercoverage.ui
+package com.ceutenant.lumen.ui
 
-import com.ceutenant.ridercoverage.model.FileCoverageSummary
-import com.ceutenant.ridercoverage.model.ProjectCoverageSummary
-import com.ceutenant.ridercoverage.model.SolutionCoverageSummary
-import com.ceutenant.ridercoverage.model.percent
+import com.ceutenant.lumen.model.FileCoverageSummary
+import com.ceutenant.lumen.model.ProjectCoverageSummary
+import com.ceutenant.lumen.model.SolutionCoverageSummary
+import com.ceutenant.lumen.model.percent
 import com.intellij.icons.AllIcons
 import javax.swing.Icon
 

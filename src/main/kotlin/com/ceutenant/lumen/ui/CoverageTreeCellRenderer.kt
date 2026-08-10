@@ -1,4 +1,4 @@
-package com.ceutenant.ridercoverage.ui
+package com.ceutenant.lumen.ui
 
 import com.intellij.ui.ColoredTreeCellRenderer
 import com.intellij.ui.SimpleTextAttributes

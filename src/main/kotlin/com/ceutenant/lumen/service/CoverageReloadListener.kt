@@ -1,4 +1,4 @@
-package com.ceutenant.ridercoverage.service
+package com.ceutenant.lumen.service
 
 import com.intellij.util.messages.Topic
 
@@ -8,6 +8,6 @@ fun interface CoverageReloadListener {
 
     companion object {
         val TOPIC: Topic<CoverageReloadListener> =
-            Topic.create("Coverage Gutter reload", CoverageReloadListener::class.java)
+            Topic.create("Lumen reload", CoverageReloadListener::class.java)
     }
 }

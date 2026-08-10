@@ -1,13 +1,13 @@
-package com.ceutenant.ridercoverage.service
+package com.ceutenant.lumen.service
 
-import com.ceutenant.ridercoverage.model.CoverageReport
-import com.ceutenant.ridercoverage.model.CoverageState
-import com.ceutenant.ridercoverage.model.FileCoverageEntry
-import com.ceutenant.ridercoverage.model.FileCoverageSummary
-import com.ceutenant.ridercoverage.model.LineHit
-import com.ceutenant.ridercoverage.model.ProjectCoverageSummary
-import com.ceutenant.ridercoverage.model.SolutionCoverageSummary
-import com.ceutenant.ridercoverage.parser.CoberturaParser
+import com.ceutenant.lumen.model.CoverageReport
+import com.ceutenant.lumen.model.CoverageState
+import com.ceutenant.lumen.model.FileCoverageEntry
+import com.ceutenant.lumen.model.FileCoverageSummary
+import com.ceutenant.lumen.model.LineHit
+import com.ceutenant.lumen.model.ProjectCoverageSummary
+import com.ceutenant.lumen.model.SolutionCoverageSummary
+import com.ceutenant.lumen.parser.CoberturaParser
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Editor
