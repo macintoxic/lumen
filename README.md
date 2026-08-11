@@ -1,4 +1,4 @@
-# Lumen
+# Lumen code coverage
 
 🇧🇷 [Ler em português](#português)
 
