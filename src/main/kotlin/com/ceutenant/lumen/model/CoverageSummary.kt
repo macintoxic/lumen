@@ -34,4 +34,7 @@ data class SolutionCoverageSummary(
 ) : CoverageAggregate {
     override val totalLines: Int get() = projects.sumOf { it.totalLines }
     override val coveredLines: Int get() = projects.sumOf { it.coveredLines }
+
+    /** false = nenhum projeto da solution tem cobertura medida (nenhum coverage.cobertura.xml foi encontrado) — mesmo critério de [ProjectCoverageSummary.measured]. */
+    val measured: Boolean get() = projects.any { it.measured }
 }

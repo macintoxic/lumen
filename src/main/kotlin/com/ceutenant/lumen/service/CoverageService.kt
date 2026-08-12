@@ -113,14 +113,18 @@ class CoverageService(private val project: Project) {
         if (report != null) paint(editor, filePath)
     }
 
-    /** Agrega o relatório carregado por arquivo -> projeto (pasta com .csproj) -> solution, pro toolwindow. */
+    /**
+     * Agrega o relatório carregado por arquivo -> projeto (pasta com .csproj) -> solution, pro toolwindow.
+     * Roda a descoberta de projetos mesmo sem relatório nenhum carregado (report == null) — solution sem
+     * nenhum teste rodado ainda deve listar os projetos existentes, só que todos como "não medido", em vez
+     * de aparecer vazia com a raiz da solution em 100% (não tem cobertura pra medir 100% de coisa nenhuma).
+     */
     fun summarize(): SolutionCoverageSummary {
-        val currentReport = report ?: return SolutionCoverageSummary(emptyList())
         val basePath = project.basePath ?: return SolutionCoverageSummary(emptyList())
         val root = File(basePath)
         val byProjectDir = linkedMapOf<String, MutableList<FileCoverageSummary>>()
 
-        for (entry in currentReport.files.values) {
+        for (entry in report?.files?.values.orEmpty()) {
             val file = File(entry.originalPath)
             val covered = entry.lines.values.count { it.hits > 0 }
             val fileSummary = FileCoverageSummary(entry.originalPath, file.name, entry.lines.size, covered)
