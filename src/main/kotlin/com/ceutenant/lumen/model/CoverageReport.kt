@@ -28,36 +28,46 @@ data class LineHit(
 typealias FileCoverage = Map<Int, LineHit>
 
 /**
- * Cobertura de uma classe dentro de um arquivo. [name] já vem sem namespace
- * e sem os tipos aninhados/gerados pelo compilador (lambda, state machine
- * de método async, tipo aninhado de verdade) — tudo isso é dobrado pra
- * dentro do tipo de fora antes de chegar aqui, do jeito que o dotCover
- * mostra (ver [com.ceutenant.lumen.parser.CoberturaParser.parse]).
+ * Cobertura de uma classe (não de um arquivo — dotCover agrupa por
+ * namespace, e uma classe às vezes não é 1:1 com um arquivo, ex.: partial
+ * class). [namespace] e [name] vêm do atributo `name` do Cobertura
+ * (`Namespace.Tipo`) já sem os tipos aninhados/gerados pelo compilador
+ * (lambda, state machine de método async, tipo aninhado de verdade) —
+ * tudo isso é dobrado pra dentro do tipo de fora antes de chegar aqui (ver
+ * [com.ceutenant.lumen.parser.CoberturaParser.parse]). [absolutePath] é o
+ * arquivo onde a classe foi vista (o primeiro, se for partial class) — só
+ * usado pra abrir o arquivo certo num duplo-clique.
  */
 data class ClassCoverageEntry(
+    /** Vazio pra classe no namespace global (sem nenhum `.` no nome do Cobertura). */
+    val namespace: String,
     val name: String,
+    val absolutePath: String,
     val lines: FileCoverage,
 )
 
 /**
  * [originalPath] preserva o casing real do arquivo em disco (pra exibir) —
  * é diferente da chave em [CoverageReport.files], que fica em minúsculo só
- * pra permitir comparar com o caminho do editor sem depender de case.
+ * pra permitir comparar com o caminho do editor sem depender de case. Usado
+ * só pra pintar o gutter do editor — a árvore do toolwindow usa [CoverageReport.classes].
  */
 data class FileCoverageEntry(
     val originalPath: String,
     val lines: FileCoverage,
-    val classes: List<ClassCoverageEntry> = emptyList(),
 )
 
 /**
- * Relatório carregado, indexado por caminho absoluto normalizado
- * (ver [com.ceutenant.lumen.parser.CoberturaParser.normalize]) —
- * é essa normalização que permite comparar o `filename` do XML (relativo a
- * um `<source>`) com o caminho do arquivo aberto no editor, sem se importar
- * com maiúsculo/minúsculo (Windows é case-insensitive).
+ * Relatório carregado. [files] é indexado por caminho absoluto normalizado
+ * (ver [com.ceutenant.lumen.parser.CoberturaParser.normalize]) — é essa
+ * normalização que permite comparar o `filename` do XML (relativo a um
+ * `<source>`) com o caminho do arquivo aberto no editor, sem se importar
+ * com maiúsculo/minúsculo (Windows é case-insensitive). [classes] é a lista
+ * achatada de todas as classes do relatório, pro toolwindow agrupar por
+ * namespace.
  */
 data class CoverageReport(
     val sourceFile: String,
     val files: Map<String, FileCoverageEntry>,
+    val classes: List<ClassCoverageEntry>,
 )

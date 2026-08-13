@@ -1,14 +1,14 @@
 package com.ceutenant.lumen.ui
 
 import com.ceutenant.lumen.model.ClassCoverageSummary
-import com.ceutenant.lumen.model.FileCoverageSummary
+import com.ceutenant.lumen.model.NamespaceCoverageSummary
 import com.ceutenant.lumen.model.ProjectCoverageSummary
 import com.ceutenant.lumen.model.SolutionCoverageSummary
 import com.ceutenant.lumen.model.percent
 import com.intellij.icons.AllIcons
 import javax.swing.Icon
 
-/** Um nó da árvore do toolwindow — os quatro níveis, no estilo dotCover: solution, projeto, arquivo, classe. */
+/** Um nó da árvore do toolwindow — os quatro níveis, no estilo dotCover: solution, projeto, namespace, classe. */
 sealed interface CoverageNode {
     val label: String
     val percent: Double
@@ -37,12 +37,12 @@ sealed interface CoverageNode {
         override val measured get() = summary.measured
     }
 
-    data class FileNode(val summary: FileCoverageSummary) : CoverageNode {
-        override val label get() = summary.displayName
+    data class NamespaceNode(val summary: NamespaceCoverageSummary) : CoverageNode {
+        override val label get() = summary.name
         override val percent get() = summary.percent
         override val totalLines get() = summary.totalLines
         override val coveredLines get() = summary.coveredLines
-        override val icon: Icon get() = AllIcons.FileTypes.Text
+        override val icon: Icon get() = AllIcons.Nodes.Package
     }
 
     data class ClassNode(val summary: ClassCoverageSummary) : CoverageNode {

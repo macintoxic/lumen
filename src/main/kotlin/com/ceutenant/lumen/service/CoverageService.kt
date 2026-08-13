@@ -4,10 +4,8 @@ import com.ceutenant.lumen.model.ClassCoverageEntry
 import com.ceutenant.lumen.model.ClassCoverageSummary
 import com.ceutenant.lumen.model.CoverageReport
 import com.ceutenant.lumen.model.CoverageState
-import com.ceutenant.lumen.model.FileCoverage
 import com.ceutenant.lumen.model.FileCoverageEntry
-import com.ceutenant.lumen.model.FileCoverageSummary
-import com.ceutenant.lumen.model.LineHit
+import com.ceutenant.lumen.model.NamespaceCoverageSummary
 import com.ceutenant.lumen.model.ProjectCoverageSummary
 import com.ceutenant.lumen.model.SolutionCoverageSummary
 import com.ceutenant.lumen.parser.CoberturaParser
@@ -29,8 +27,10 @@ import java.io.File
  * Estado de cobertura do projeto: carrega os Cobertura XML mais recentes
  * (um por projeto de teste — ver [findLatestReportFiles]) e pinta/limpa o
  * gutter dos editores abertos, além de servir o resumo agregado por
- * arquivo/projeto/solution pro toolwindow. Um serviço por projeto (não por
- * aplicação) porque "sob a raiz do projeto" só faz sentido por projeto.
+ * namespace/projeto/solution pro toolwindow (dotCover agrupa classe por
+ * namespace, não por arquivo — ver [summarize]). Um serviço por projeto
+ * (não por aplicação) porque "sob a raiz do projeto" só faz sentido por
+ * projeto.
  */
 @Service(Service.Level.PROJECT)
 class CoverageService(private val project: Project) {
@@ -55,24 +55,41 @@ class CoverageService(private val project: Project) {
             return false
         }
 
-        val merged = mutableMapOf<String, FileCoverageEntry>()
+        val mergedFiles = mutableMapOf<String, FileCoverageEntry>()
+        // Chave "namespace.Classe" -> entrada mesclada (mesma classe pode
+        // vir de mais de um relatório de teste, ex.: dois projetos de teste
+        // cobrindo a mesma lib).
+        val mergedClasses = linkedMapOf<String, ClassCoverageEntry>()
+
         for (file in reportFiles) {
             try {
-                for ((key, entry) in CoberturaParser.parse(file).files) {
+                val parsed = CoberturaParser.parse(file)
+
+                for ((key, entry) in parsed.files) {
                     // Arquivos diferentes normalmente não se repetem entre
                     // relatórios de projetos de teste distintos, então um
                     // merge raso (por caminho de arquivo) é suficiente.
-                    val existing = merged[key]
-                    val mergedLines = existing?.lines.orEmpty() + entry.lines
-                    val mergedClasses = mergeClasses(existing?.classes.orEmpty(), entry.classes)
-                    merged[key] = FileCoverageEntry(entry.originalPath, mergedLines, mergedClasses)
+                    val existingLines = mergedFiles[key]?.lines.orEmpty()
+                    mergedFiles[key] = FileCoverageEntry(entry.originalPath, existingLines + entry.lines)
+                }
+
+                for (classEntry in parsed.classes) {
+                    val classKey = "${classEntry.namespace}.${classEntry.name}"
+                    val existing = mergedClasses[classKey]
+                    val mergedLines = existing?.lines.orEmpty() + classEntry.lines
+                    mergedClasses[classKey] = ClassCoverageEntry(
+                        classEntry.namespace,
+                        classEntry.name,
+                        existing?.absolutePath ?: classEntry.absolutePath,
+                        mergedLines,
+                    )
                 }
             } catch (e: Exception) {
                 logger.warn("Falha lendo $file", e)
             }
         }
 
-        report = CoverageReport(reportFiles.joinToString(";") { it.absolutePath }, merged)
+        report = CoverageReport(reportFiles.joinToString(";") { it.absolutePath }, mergedFiles, mergedClasses.values.toList())
         repaintAllOpenEditors()
         publishReloaded()
         return true
@@ -119,26 +136,29 @@ class CoverageService(private val project: Project) {
     }
 
     /**
-     * Agrega o relatório carregado por arquivo -> projeto (pasta com .csproj) -> solution, pro toolwindow.
-     * Roda a descoberta de projetos mesmo sem relatório nenhum carregado (report == null) — solution sem
-     * nenhum teste rodado ainda deve listar os projetos existentes, só que todos como "não medido", em vez
-     * de aparecer vazia com a raiz da solution em 100% (não tem cobertura pra medir 100% de coisa nenhuma).
+     * Agrega o relatório carregado por classe -> namespace -> projeto (pasta
+     * com .csproj) -> solution, pro toolwindow — no estilo do dotCover, que
+     * organiza a árvore por namespace, não por arquivo. Roda a descoberta de
+     * projetos mesmo sem relatório nenhum carregado (report == null) —
+     * solution sem nenhum teste rodado ainda deve listar os projetos
+     * existentes, só que todos como "não medido", em vez de aparecer vazia
+     * com a raiz da solution em 100% (não tem cobertura pra medir 100% de
+     * coisa nenhuma).
      */
     fun summarize(): SolutionCoverageSummary {
         val basePath = project.basePath ?: return SolutionCoverageSummary(emptyList())
         val root = File(basePath)
-        val byProjectDir = linkedMapOf<String, MutableList<FileCoverageSummary>>()
+        val byProjectDir = linkedMapOf<String, MutableMap<String, MutableList<ClassCoverageSummary>>>()
 
-        for (entry in report?.files?.values.orEmpty()) {
-            val file = File(entry.originalPath)
+        for (entry in report?.classes.orEmpty()) {
+            val file = File(entry.absolutePath)
             val covered = entry.lines.values.count { it.hits > 0 }
-            val classSummaries = entry.classes.map { classEntry ->
-                val classCovered = classEntry.lines.values.count { it.hits > 0 }
-                ClassCoverageSummary(classEntry.name, entry.originalPath, classEntry.lines.size, classCovered)
-            }
-            val fileSummary = FileCoverageSummary(entry.originalPath, file.name, entry.lines.size, covered, classSummaries)
+            val classSummary = ClassCoverageSummary(entry.name, entry.absolutePath, entry.lines.size, covered)
             val projectDir = findProjectDir(file.parentFile ?: root, root) ?: root.path
-            byProjectDir.getOrPut(projectDir) { mutableListOf() }.add(fileSummary)
+            val namespaceLabel = entry.namespace.ifEmpty { NO_NAMESPACE_LABEL }
+            byProjectDir.getOrPut(projectDir) { linkedMapOf() }
+                .getOrPut(namespaceLabel) { mutableListOf() }
+                .add(classSummary)
         }
 
         // Cobertura só cobre o que os testes de fato carregaram — um projeto
@@ -147,11 +167,14 @@ class CoverageService(private val project: Project) {
         // .cobertura.xml. Sem isso, esses projetos simplesmente somem do
         // painel em vez de aparecer como "não medido".
         for (dir in discoverNonTestProjectDirs(root)) {
-            byProjectDir.getOrPut(dir.path) { mutableListOf() }
+            byProjectDir.getOrPut(dir.path) { linkedMapOf() }
         }
 
-        val projects = byProjectDir.map { (dir, files) ->
-            ProjectCoverageSummary(File(dir).name, dir, files.sortedBy { it.displayName })
+        val projects = byProjectDir.map { (dir, byNamespace) ->
+            val namespaces = byNamespace.map { (namespace, classes) ->
+                NamespaceCoverageSummary(namespace, classes.sortedBy { it.name })
+            }.sortedBy { it.name }
+            ProjectCoverageSummary(File(dir).name, dir, namespaces)
         }.sortedBy { it.name }
 
         return SolutionCoverageSummary(projects)
@@ -218,15 +241,8 @@ class CoverageService(private val project: Project) {
             .values
             .mapNotNull { group -> group.maxByOrNull { it.lastModified() } }
 
-    /** Junta as classes de dois relatórios pro mesmo arquivo (ver [reload]) — mesma classe em ambos tem as linhas somadas, igual ao merge de [FileCoverageEntry.lines]. */
-    private fun mergeClasses(existing: List<ClassCoverageEntry>, incoming: List<ClassCoverageEntry>): List<ClassCoverageEntry> {
-        val byName = linkedMapOf<String, FileCoverage>()
-        for (entry in existing) byName[entry.name] = entry.lines
-        for (entry in incoming) byName[entry.name] = byName[entry.name].orEmpty() + entry.lines
-        return byName.map { (name, lines) -> ClassCoverageEntry(name, lines) }
-    }
-
     companion object {
+        private const val NO_NAMESPACE_LABEL = "(no namespace)"
         private val EXCLUDED_DIRS = setOf(".git", "node_modules", ".idea")
         private val PROJECT_DISCOVERY_EXCLUDED_DIRS = EXCLUDED_DIRS + setOf("bin", "obj")
         private val COVERED_COLOR = JBColor(Color(198, 239, 206), Color(30, 70, 40))

@@ -17,25 +17,26 @@ data class ClassCoverageSummary(
     override val coveredLines: Int,
 ) : CoverageAggregate
 
-data class FileCoverageSummary(
-    val absolutePath: String,
-    val displayName: String,
-    override val totalLines: Int,
-    override val coveredLines: Int,
-    val classes: List<ClassCoverageSummary> = emptyList(),
-) : CoverageAggregate
+data class NamespaceCoverageSummary(
+    /** Nome completo do namespace (ex. "TenantKit.Catalog"), ou o rótulo de [com.ceutenant.lumen.service.CoverageService] pra classe sem namespace. */
+    val name: String,
+    val classes: List<ClassCoverageSummary>,
+) : CoverageAggregate {
+    override val totalLines: Int get() = classes.sumOf { it.totalLines }
+    override val coveredLines: Int get() = classes.sumOf { it.coveredLines }
+}
 
 data class ProjectCoverageSummary(
-    /** Nome da pasta que contém o .csproj (ou a raiz do projeto, se nenhum arquivo pertencer a um .csproj identificável). */
+    /** Nome da pasta que contém o .csproj (ou a raiz do projeto, se nenhuma classe pertencer a um .csproj identificável). */
     val name: String,
     val directory: String,
-    val files: List<FileCoverageSummary>,
+    val namespaces: List<NamespaceCoverageSummary>,
 ) : CoverageAggregate {
-    override val totalLines: Int get() = files.sumOf { it.totalLines }
-    override val coveredLines: Int get() = files.sumOf { it.coveredLines }
+    override val totalLines: Int get() = namespaces.sumOf { it.totalLines }
+    override val coveredLines: Int get() = namespaces.sumOf { it.coveredLines }
 
     /** false = projeto existe na solution mas não apareceu em nenhum coverage.cobertura.xml (nunca foi carregado por um teste) — não confundir com "0% coberto". */
-    val measured: Boolean get() = files.isNotEmpty()
+    val measured: Boolean get() = namespaces.isNotEmpty()
 }
 
 data class SolutionCoverageSummary(

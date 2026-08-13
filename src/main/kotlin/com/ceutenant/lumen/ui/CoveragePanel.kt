@@ -22,7 +22,7 @@ import javax.swing.JPanel
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
 
-/** Conteúdo do toolwindow: TreeTable Symbol / Coverage (%) / Uncovered-Total, no estilo dotCover; duplo-clique num arquivo abre ele. */
+/** Conteúdo do toolwindow: TreeTable Symbol / Coverage (%) / Uncovered-Total, no estilo dotCover (Solution/Projeto/Namespace/Classe); duplo-clique numa classe abre o arquivo dela. */
 class CoveragePanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
     private val rootNode = DefaultMutableTreeNode()
@@ -49,12 +49,8 @@ class CoveragePanel(private val project: Project) : JPanel(BorderLayout()), Disp
                 val row = treeTable.rowAtPoint(e.point)
                 val treePath = treeTable.tree.getPathForRow(row) ?: return
                 val node = treePath.lastPathComponent as? DefaultMutableTreeNode ?: return
-                val absolutePath = when (val userObject = node.userObject) {
-                    is CoverageNode.FileNode -> userObject.summary.absolutePath
-                    is CoverageNode.ClassNode -> userObject.summary.absolutePath
-                    else -> null
-                } ?: return
-                openFile(absolutePath)
+                val classNode = node.userObject as? CoverageNode.ClassNode ?: return
+                openFile(classNode.summary.absolutePath)
             }
         })
 
@@ -98,24 +94,24 @@ class CoveragePanel(private val project: Project) : JPanel(BorderLayout()), Disp
         val solutionNode = DefaultMutableTreeNode(CoverageNode.SolutionNode(summary))
         for (projectSummary in summary.projects) {
             val projectNode = DefaultMutableTreeNode(CoverageNode.ProjectNode(projectSummary))
-            for (fileSummary in projectSummary.files) {
-                val fileNode = DefaultMutableTreeNode(CoverageNode.FileNode(fileSummary))
-                for (classSummary in fileSummary.classes) {
-                    fileNode.add(DefaultMutableTreeNode(CoverageNode.ClassNode(classSummary)))
+            for (namespaceSummary in projectSummary.namespaces) {
+                val namespaceNode = DefaultMutableTreeNode(CoverageNode.NamespaceNode(namespaceSummary))
+                for (classSummary in namespaceSummary.classes) {
+                    namespaceNode.add(DefaultMutableTreeNode(CoverageNode.ClassNode(classSummary)))
                 }
-                projectNode.add(fileNode)
+                projectNode.add(namespaceNode)
             }
             solutionNode.add(projectNode)
         }
         rootNode.add(solutionNode)
 
         treeTableModel.reload()
-        // Expande só até Arquivo ficar visível (a mesma profundidade de
-        // antes da árvore ganhar o nível de Classe) — expandAll aqui abriria
-        // toda classe de todo arquivo de uma vez, ruído em qualquer solution
-        // de tamanho real. Expandir Solution e cada Projeto (mas não os
-        // próprios Arquivos) já basta pra revelar os Arquivos, que ficam
-        // colapsados por padrão até o usuário abrir um.
+        // Expande só até Namespace ficar visível (mesma ideia de antes da
+        // árvore ganhar o nível de Classe, só um degrau abaixo agora) —
+        // expandAll aqui abriria toda classe de todo namespace de uma vez,
+        // ruído em qualquer solution de tamanho real. Expandir Solution e
+        // cada Projeto (mas não os próprios Namespaces) já basta pra revelar
+        // os Namespaces, que ficam colapsados por padrão até o usuário abrir um.
         treeTable.tree.expandPath(TreePath(solutionNode.path))
         for (i in 0 until solutionNode.childCount) {
             val projectNode = solutionNode.getChildAt(i) as DefaultMutableTreeNode

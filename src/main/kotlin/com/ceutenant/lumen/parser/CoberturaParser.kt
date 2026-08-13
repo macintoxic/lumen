@@ -37,9 +37,14 @@ object CoberturaParser {
             .ifEmpty { listOf(xmlFile.parentFile?.absolutePath ?: ".") }
 
         val files = mutableMapOf<String, MutableMap<Int, LineHit>>()
-        // fileKey -> nome da classe "de fora" -> suas linhas (ver a nota
-        // sobre outerClassName abaixo).
-        val classesByFile = mutableMapOf<String, MutableMap<String, MutableMap<Int, LineHit>>>()
+        // nome completo da classe "de fora" (ver outerClassName abaixo) ->
+        // suas linhas, achatado pro relatório inteiro (dotCover agrupa
+        // classe por namespace, não por arquivo — ver CoverageService.summarize()).
+        val classLines = linkedMapOf<String, MutableMap<Int, LineHit>>()
+        // Primeiro arquivo onde cada classe foi vista, só pra abrir o
+        // arquivo certo no duplo-clique (uma partial class pode ter partes
+        // em mais de um arquivo; fica só a primeira).
+        val classFileKey = mutableMapOf<String, String>()
         // Guarda o caminho com o casing real do disco por chave normalizada
         // (minúscula) — a chave em si não pode ser usada pra exibir porque
         // perde o casing original do arquivo.
@@ -54,12 +59,13 @@ object CoberturaParser {
 
             // O coverlet separa tipo aninhado/gerado pelo compilador (lambda,
             // state machine de método async, tipo aninhado de verdade) do
-            // tipo de fora com "/" no nome (ex.: "TenantCatalog/<>c",
-            // "TenantCatalog/<CreateAsync>d__7") — dobra tudo pra dentro do
-            // tipo de fora, senão a árvore de classes fica cheia de "tipos"
-            // que não existem de verdade no código-fonte.
+            // tipo de fora com "/" no nome (ex.: "TenantKit.Catalog.TenantCatalog/<>c",
+            // ".../<CreateAsync>d__7") — dobra tudo pra dentro do tipo de
+            // fora, senão a árvore de classes fica cheia de "tipos" que não
+            // existem de verdade no código-fonte.
             val outerClassName = classElement.getAttribute("name").substringBefore('/')
-            val classLineMap = classesByFile.getOrPut(key) { mutableMapOf() }.getOrPut(outerClassName) { mutableMapOf() }
+            classFileKey.putIfAbsent(outerClassName, key)
+            val classLineMap = classLines.getOrPut(outerClassName) { mutableMapOf() }
 
             val lineElements = classElement.getElementsByTagName("lines").asElementList()
                 .flatMap { it.getElementsByTagName("line").asElementList() }
@@ -92,14 +98,17 @@ object CoberturaParser {
             }
         }
 
-        val entries = files.mapValues { (key, lines) ->
-            val classes = classesByFile[key].orEmpty().map { (outerClassName, classLines) ->
-                ClassCoverageEntry(outerClassName.substringAfterLast('.'), classLines)
-            }.sortedBy { it.name }
-            FileCoverageEntry(originalPaths[key] ?: key, lines, classes)
-        }
+        val fileEntries = files.mapValues { (key, lines) -> FileCoverageEntry(originalPaths[key] ?: key, lines) }
 
-        return CoverageReport(xmlFile.absolutePath, entries)
+        val classEntries = classLines.map { (outerClassName, lines) ->
+            // "" (sem namespace) se o nome não tiver "." nenhum — classe no namespace global.
+            val namespace = outerClassName.substringBeforeLast('.', missingDelimiterValue = "")
+            val shortName = outerClassName.substringAfterLast('.')
+            val fileKey = classFileKey.getValue(outerClassName)
+            ClassCoverageEntry(namespace, shortName, originalPaths[fileKey] ?: fileKey, lines)
+        }.sortedBy { "${it.namespace}.${it.name}" }
+
+        return CoverageReport(xmlFile.absolutePath, fileEntries, classEntries)
     }
 
     /** canonicalPath resolve o casing real do arquivo no disco (Windows é case-insensitive mas preserva o case gravado); cai pra absolutePath se o arquivo sumir entre o parse e aqui. */
