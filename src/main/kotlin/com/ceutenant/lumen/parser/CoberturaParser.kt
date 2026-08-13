@@ -1,5 +1,6 @@
 package com.ceutenant.lumen.parser
 
+import com.ceutenant.lumen.model.ClassCoverageEntry
 import com.ceutenant.lumen.model.CoverageReport
 import com.ceutenant.lumen.model.FileCoverageEntry
 import com.ceutenant.lumen.model.LineHit
@@ -36,6 +37,9 @@ object CoberturaParser {
             .ifEmpty { listOf(xmlFile.parentFile?.absolutePath ?: ".") }
 
         val files = mutableMapOf<String, MutableMap<Int, LineHit>>()
+        // fileKey -> nome da classe "de fora" -> suas linhas (ver a nota
+        // sobre outerClassName abaixo).
+        val classesByFile = mutableMapOf<String, MutableMap<String, MutableMap<Int, LineHit>>>()
         // Guarda o caminho com o casing real do disco por chave normalizada
         // (minúscula) — a chave em si não pode ser usada pra exibir porque
         // perde o casing original do arquivo.
@@ -47,6 +51,15 @@ object CoberturaParser {
             val key = normalize(resolved)
             originalPaths.putIfAbsent(key, resolved.canonicalPathOrAbsolute())
             val lineMap = files.getOrPut(key) { mutableMapOf() }
+
+            // O coverlet separa tipo aninhado/gerado pelo compilador (lambda,
+            // state machine de método async, tipo aninhado de verdade) do
+            // tipo de fora com "/" no nome (ex.: "TenantCatalog/<>c",
+            // "TenantCatalog/<CreateAsync>d__7") — dobra tudo pra dentro do
+            // tipo de fora, senão a árvore de classes fica cheia de "tipos"
+            // que não existem de verdade no código-fonte.
+            val outerClassName = classElement.getAttribute("name").substringBefore('/')
+            val classLineMap = classesByFile.getOrPut(key) { mutableMapOf() }.getOrPut(outerClassName) { mutableMapOf() }
 
             val lineElements = classElement.getElementsByTagName("lines").asElementList()
                 .flatMap { it.getElementsByTagName("line").asElementList() }
@@ -66,16 +79,24 @@ object CoberturaParser {
                 // Duas <class> podem cobrir a mesma linha do mesmo arquivo
                 // (ex.: partial class, ou o estado gerado pelo compilador pra
                 // método async) — fica a entrada com mais hits já vista pra
-                // essa linha.
+                // essa linha. Mesma regra nos dois mapas (arquivo inteiro e
+                // por classe).
                 val existing = lineMap[number]
                 if (existing == null || candidate.hits > existing.hits) {
                     lineMap[number] = candidate
+                }
+                val existingClassLine = classLineMap[number]
+                if (existingClassLine == null || candidate.hits > existingClassLine.hits) {
+                    classLineMap[number] = candidate
                 }
             }
         }
 
         val entries = files.mapValues { (key, lines) ->
-            FileCoverageEntry(originalPaths[key] ?: key, lines)
+            val classes = classesByFile[key].orEmpty().map { (outerClassName, classLines) ->
+                ClassCoverageEntry(outerClassName.substringAfterLast('.'), classLines)
+            }.sortedBy { it.name }
+            FileCoverageEntry(originalPaths[key] ?: key, lines, classes)
         }
 
         return CoverageReport(xmlFile.absolutePath, entries)

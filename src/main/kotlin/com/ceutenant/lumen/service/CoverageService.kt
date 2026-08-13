@@ -1,5 +1,6 @@
 package com.ceutenant.lumen.service
 
+import com.ceutenant.lumen.model.ClassCoverageSummary
 import com.ceutenant.lumen.model.CoverageReport
 import com.ceutenant.lumen.model.CoverageState
 import com.ceutenant.lumen.model.FileCoverageEntry
@@ -127,7 +128,11 @@ class CoverageService(private val project: Project) {
         for (entry in report?.files?.values.orEmpty()) {
             val file = File(entry.originalPath)
             val covered = entry.lines.values.count { it.hits > 0 }
-            val fileSummary = FileCoverageSummary(entry.originalPath, file.name, entry.lines.size, covered)
+            val classSummaries = entry.classes.map { classEntry ->
+                val classCovered = classEntry.lines.values.count { it.hits > 0 }
+                ClassCoverageSummary(classEntry.name, entry.originalPath, classEntry.lines.size, classCovered)
+            }
+            val fileSummary = FileCoverageSummary(entry.originalPath, file.name, entry.lines.size, covered, classSummaries)
             val projectDir = findProjectDir(file.parentFile ?: root, root) ?: root.path
             byProjectDir.getOrPut(projectDir) { mutableListOf() }.add(fileSummary)
         }

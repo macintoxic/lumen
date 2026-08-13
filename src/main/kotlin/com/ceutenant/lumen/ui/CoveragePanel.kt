@@ -15,12 +15,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.treeStructure.treetable.TreeTable
-import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
 import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.TreePath
 
 /** Conteúdo do toolwindow: TreeTable Symbol / Coverage (%) / Uncovered-Total, no estilo dotCover; duplo-clique num arquivo abre ele. */
 class CoveragePanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
@@ -49,8 +49,12 @@ class CoveragePanel(private val project: Project) : JPanel(BorderLayout()), Disp
                 val row = treeTable.rowAtPoint(e.point)
                 val treePath = treeTable.tree.getPathForRow(row) ?: return
                 val node = treePath.lastPathComponent as? DefaultMutableTreeNode ?: return
-                val fileNode = node.userObject as? CoverageNode.FileNode ?: return
-                openFile(fileNode.summary.absolutePath)
+                val absolutePath = when (val userObject = node.userObject) {
+                    is CoverageNode.FileNode -> userObject.summary.absolutePath
+                    is CoverageNode.ClassNode -> userObject.summary.absolutePath
+                    else -> null
+                } ?: return
+                openFile(absolutePath)
             }
         })
 
@@ -95,14 +99,28 @@ class CoveragePanel(private val project: Project) : JPanel(BorderLayout()), Disp
         for (projectSummary in summary.projects) {
             val projectNode = DefaultMutableTreeNode(CoverageNode.ProjectNode(projectSummary))
             for (fileSummary in projectSummary.files) {
-                projectNode.add(DefaultMutableTreeNode(CoverageNode.FileNode(fileSummary)))
+                val fileNode = DefaultMutableTreeNode(CoverageNode.FileNode(fileSummary))
+                for (classSummary in fileSummary.classes) {
+                    fileNode.add(DefaultMutableTreeNode(CoverageNode.ClassNode(classSummary)))
+                }
+                projectNode.add(fileNode)
             }
             solutionNode.add(projectNode)
         }
         rootNode.add(solutionNode)
 
         treeTableModel.reload()
-        TreeUtil.expandAll(treeTable.tree)
+        // Expande só até Arquivo ficar visível (a mesma profundidade de
+        // antes da árvore ganhar o nível de Classe) — expandAll aqui abriria
+        // toda classe de todo arquivo de uma vez, ruído em qualquer solution
+        // de tamanho real. Expandir Solution e cada Projeto (mas não os
+        // próprios Arquivos) já basta pra revelar os Arquivos, que ficam
+        // colapsados por padrão até o usuário abrir um.
+        treeTable.tree.expandPath(TreePath(solutionNode.path))
+        for (i in 0 until solutionNode.childCount) {
+            val projectNode = solutionNode.getChildAt(i) as DefaultMutableTreeNode
+            treeTable.tree.expandPath(TreePath(projectNode.path))
+        }
     }
 
     private fun openFile(absolutePath: String) {

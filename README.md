@@ -20,11 +20,15 @@ that `coverlet.collector` already generates via
 
 ### "Code Coverage" panel (toolwindow, right sidebar)
 
-Solution → Project (folder with a `.csproj`) → File tree, in the style of
-dotCover's "Coverage Tree" window: each row has a two-color bar
+Solution → Project (folder with a `.csproj`) → File → Class tree, in the
+style of dotCover's "Coverage Tree" window: each row has a two-color bar
 (green = covered, pink = uncovered, `%` written inside) and the
-`uncovered/total` count of tracked lines. Double-clicking a file opens it in
-the editor.
+`uncovered/total` count of tracked lines. Double-clicking a file or class
+opens the file in the editor. Compiler-generated nested types (async state
+machines, lambda display classes) are folded into their containing class
+instead of showing up as separate rows — same for real nested types
+(private records/structs) — so the tree stays as clean as dotCover's instead
+of listing every hidden type IL happens to generate.
 
 ### Automatic refresh
 
@@ -130,11 +134,16 @@ dotCover, sem instrumentar nem rodar nada: só lê o Cobertura XML que o
 
 ### Painel "Code Coverage" (toolwindow, lateral direita)
 
-Árvore Solution → Projeto (pasta com `.csproj`) → Arquivo, no estilo da
-janela "Coverage Tree" do dotCover: cada linha tem uma barra bicolor
-(verde = coberto, rosa = não coberto, `%` escrito dentro) e a contagem
-`não-coberto/total` de linhas rastreadas. Duplo-clique num arquivo abre ele
-no editor.
+Árvore Solution → Projeto (pasta com `.csproj`) → Arquivo → Classe, no
+estilo da janela "Coverage Tree" do dotCover: cada linha tem uma barra
+bicolor (verde = coberto, rosa = não coberto, `%` escrito dentro) e a
+contagem `não-coberto/total` de linhas rastreadas. Duplo-clique num arquivo
+ou classe abre o arquivo no editor. Tipos aninhados gerados pelo compilador
+(state machine de método async, lambda) são dobrados pra dentro da classe
+que os contém em vez de aparecer como linha própria na árvore — o mesmo
+vale pra tipo aninhado de verdade (record/struct privado) — pra árvore
+ficar tão limpa quanto a do dotCover em vez de listar todo tipo escondido
+que o compilador gera.
 
 ### Atualização automática
 

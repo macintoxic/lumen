@@ -28,6 +28,18 @@ data class LineHit(
 typealias FileCoverage = Map<Int, LineHit>
 
 /**
+ * Cobertura de uma classe dentro de um arquivo. [name] já vem sem namespace
+ * e sem os tipos aninhados/gerados pelo compilador (lambda, state machine
+ * de método async, tipo aninhado de verdade) — tudo isso é dobrado pra
+ * dentro do tipo de fora antes de chegar aqui, do jeito que o dotCover
+ * mostra (ver [com.ceutenant.lumen.parser.CoberturaParser.parse]).
+ */
+data class ClassCoverageEntry(
+    val name: String,
+    val lines: FileCoverage,
+)
+
+/**
  * [originalPath] preserva o casing real do arquivo em disco (pra exibir) —
  * é diferente da chave em [CoverageReport.files], que fica em minúsculo só
  * pra permitir comparar com o caminho do editor sem depender de case.
@@ -35,6 +47,7 @@ typealias FileCoverage = Map<Int, LineHit>
 data class FileCoverageEntry(
     val originalPath: String,
     val lines: FileCoverage,
+    val classes: List<ClassCoverageEntry> = emptyList(),
 )
 
 /**

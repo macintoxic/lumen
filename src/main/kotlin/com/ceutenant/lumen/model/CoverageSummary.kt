@@ -9,11 +9,20 @@ sealed interface CoverageAggregate {
 val CoverageAggregate.percent: Double
     get() = if (totalLines == 0) 100.0 else coveredLines * 100.0 / totalLines
 
+data class ClassCoverageSummary(
+    /** Já sem namespace nem tipos aninhados/gerados pelo compilador — ver [com.ceutenant.lumen.model.ClassCoverageEntry]. */
+    val name: String,
+    val absolutePath: String,
+    override val totalLines: Int,
+    override val coveredLines: Int,
+) : CoverageAggregate
+
 data class FileCoverageSummary(
     val absolutePath: String,
     val displayName: String,
     override val totalLines: Int,
     override val coveredLines: Int,
+    val classes: List<ClassCoverageSummary> = emptyList(),
 ) : CoverageAggregate
 
 data class ProjectCoverageSummary(
