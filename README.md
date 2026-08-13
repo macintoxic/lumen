@@ -95,6 +95,21 @@ ui/        — CoverageToolWindowFactory/CoveragePanel: TreeTable Symbol/Coverag
   6.0.4 reports. Other Cobertura XML generators (dotnet-coverage,
   ReportGenerator) should work too since the format is the same, but they
   haven't been tested.
+- The Marketplace/Plugin Verifier check flags deprecated/experimental API
+  usage on `ToolWindowFactory` (`isApplicable`, `isDoNotActivateOnStart`,
+  `getAnchor`, `getIcon`, `manage(...)`). This is unavoidable noise from
+  simply implementing that interface — `CoverageToolWindowFactory` only
+  overrides `createToolWindowContent`; those other members are default
+  implementations on the interface itself, confirmed by decompiling
+  `com.intellij.openapi.wm.ToolWindowFactory` from the Rider install (`javap
+  -p -classpath <path-to-intellij.platform.ide.jar> com.intellij.openapi.wm.ToolWindowFactory`).
+  Every toolwindow plugin registered the classic way (via `<toolWindow
+  factoryClass=... anchor=... icon=...>` in `plugin.xml`, which is still
+  fully supported) gets the same warning. It's informational, doesn't block
+  publishing, and there's no source change that would remove it short of
+  rewriting the whole factory around the newer coroutine-based
+  registration API — disproportionate for a plugin with no async lifecycle
+  needs.
 
 ---
 
@@ -189,3 +204,18 @@ ui/        — CoverageToolWindowFactory/CoveragePanel: TreeTable Symbol/Coverag
   `coverlet.collector` 6.0.4. Outros geradores de Cobertura XML (dotnet-coverage,
   ReportGenerator) devem funcionar também já que o formato é o mesmo, mas não
   foram testados.
+- A verificação do Marketplace/Plugin Verifier acusa uso de API
+  depreciada/experimental em `ToolWindowFactory` (`isApplicable`,
+  `isDoNotActivateOnStart`, `getAnchor`, `getIcon`, `manage(...)`). É ruído
+  inevitável de simplesmente implementar essa interface — o
+  `CoverageToolWindowFactory` só sobrescreve `createToolWindowContent`; os
+  outros membros são implementações padrão da própria interface, confirmado
+  decompilando `com.intellij.openapi.wm.ToolWindowFactory` direto da
+  instalação do Rider (`javap -p -classpath <caminho-do-intellij.platform.ide.jar>
+  com.intellij.openapi.wm.ToolWindowFactory`). Todo plugin de toolwindow
+  registrado do jeito clássico (via `<toolWindow factoryClass=... anchor=...
+  icon=...>` no `plugin.xml`, que continua totalmente suportado) recebe o
+  mesmo aviso. É informativo, não bloqueia a publicação, e não há mudança de
+  código que faça sumir sem reescrever o factory inteiro em torno da API de
+  registro mais nova baseada em coroutines — desproporcional pra um plugin
+  sem nenhuma necessidade de lifecycle assíncrono.
