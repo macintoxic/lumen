@@ -1,8 +1,10 @@
 package com.ceutenant.lumen.service
 
+import com.ceutenant.lumen.model.ClassCoverageEntry
 import com.ceutenant.lumen.model.ClassCoverageSummary
 import com.ceutenant.lumen.model.CoverageReport
 import com.ceutenant.lumen.model.CoverageState
+import com.ceutenant.lumen.model.FileCoverage
 import com.ceutenant.lumen.model.FileCoverageEntry
 import com.ceutenant.lumen.model.FileCoverageSummary
 import com.ceutenant.lumen.model.LineHit
@@ -60,8 +62,10 @@ class CoverageService(private val project: Project) {
                     // Arquivos diferentes normalmente não se repetem entre
                     // relatórios de projetos de teste distintos, então um
                     // merge raso (por caminho de arquivo) é suficiente.
-                    val existingLines = merged[key]?.lines.orEmpty()
-                    merged[key] = FileCoverageEntry(entry.originalPath, existingLines + entry.lines)
+                    val existing = merged[key]
+                    val mergedLines = existing?.lines.orEmpty() + entry.lines
+                    val mergedClasses = mergeClasses(existing?.classes.orEmpty(), entry.classes)
+                    merged[key] = FileCoverageEntry(entry.originalPath, mergedLines, mergedClasses)
                 }
             } catch (e: Exception) {
                 logger.warn("Falha lendo $file", e)
@@ -213,6 +217,14 @@ class CoverageService(private val project: Project) {
             .groupBy { it.parentFile?.parentFile?.path ?: it.path }
             .values
             .mapNotNull { group -> group.maxByOrNull { it.lastModified() } }
+
+    /** Junta as classes de dois relatórios pro mesmo arquivo (ver [reload]) — mesma classe em ambos tem as linhas somadas, igual ao merge de [FileCoverageEntry.lines]. */
+    private fun mergeClasses(existing: List<ClassCoverageEntry>, incoming: List<ClassCoverageEntry>): List<ClassCoverageEntry> {
+        val byName = linkedMapOf<String, FileCoverage>()
+        for (entry in existing) byName[entry.name] = entry.lines
+        for (entry in incoming) byName[entry.name] = byName[entry.name].orEmpty() + entry.lines
+        return byName.map { (name, lines) -> ClassCoverageEntry(name, lines) }
+    }
 
     companion object {
         private val EXCLUDED_DIRS = setOf(".git", "node_modules", ".idea")
