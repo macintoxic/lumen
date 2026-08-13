@@ -2,12 +2,9 @@ package com.ceutenant.lumen.ui
 
 import com.ceutenant.lumen.service.CoverageReloadListener
 import com.ceutenant.lumen.service.CoverageService
-import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -69,15 +66,13 @@ class CoveragePanel(private val project: Project) : JPanel(BorderLayout()), Disp
 
     private fun buildToolbar(): JPanel {
         val group = DefaultActionGroup()
-        group.add(object : AnAction(
-            "Reload Coverage Report",
-            "Reimporta o(s) coverage.cobertura.xml mais recente(s) do projeto",
-            AllIcons.Actions.Refresh,
-        ) {
-            override fun actionPerformed(e: AnActionEvent) {
-                project.getService(CoverageService::class.java).reload()
-            }
-        })
+        // Reusa a action já registrada em plugin.xml (mesma do menu Tools/
+        // context menu do editor) em vez de duplicar uma AnAction anônima
+        // aqui — evita repetir texto/ícone e, principalmente, evita
+        // esquecer de sobrescrever getActionUpdateThread() de novo (uma
+        // AnAction sem isso falha silenciosamente nesta versão do IntelliJ
+        // Platform: nenhum erro visível, só uma entrada no idea.log).
+        group.add(ActionManager.getInstance().getAction("Lumen.ReloadCoverage"))
 
         val toolbar = ActionManager.getInstance().createActionToolbar(ActionPlaces.TOOLWINDOW_CONTENT, group, true)
         toolbar.targetComponent = this

@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.ceutenant.lumen"
-version = "0.0.5"
+version = "0.0.6"
 
 repositories {
     mavenCentral()
@@ -52,6 +52,10 @@ intellijPlatform {
         // CHANGELOG.md nem é gerado automaticamente. Atualizar manualmente
         // a cada versão nova, deixando o histórico das anteriores.
         changeNotes = """
+            <b>0.0.6</b>
+            <ul>
+              <li>Corrigido: o botão de refresh dentro do painel não fazia nada ao clicar (a action não tinha o threading configurado corretamente e falhava silenciosamente).</li>
+            </ul>
             <b>0.0.5</b>
             <ul>
               <li>Árvore do painel agora agrupa classes por namespace (Solution &gt; Projeto &gt; Namespace &gt; Classe), como no dotCover, em vez de por arquivo.</li>
